@@ -2438,6 +2438,34 @@ if isinstance(lang, list):
     }
 </script>
 
+<!-- ################ dialog mongo resolver #################### -->
+
+<div id="dialog_mongo_resolver">
+	<form class="cmxform" id="form_mongoconfig" action="">
+		<fieldset>
+			<table>
+				<colgroup>
+					<col span="1" class="label-column">
+					<col span="1">
+				</colgroup>
+				<tr><td><label for=mongo_resolvername>${_("Resolver name")}:</label></td>
+					<td><input type="text" name="mongo_resolvername" class="required"  id="mongo_resolvername" size="35" maxlength="20"></td></tr>
+				<tr><td><label for=mongo_connString>${_("connString")}:</label></td>
+					<td><input type="text" name="mongo_connString" class="required"  id="mongo_connString" size="35" maxlength="200"></td></tr>
+				<tr><td><label for=mongo_collection>${_("collection")}:</label></td>
+					<td><input type="text" name="mongo_collection" class="required"  id="mongo_collection" size="35" maxlength="200"></td></tr>
+			</table>
+		</fieldset>
+	</form>
+</div>
+<script type="text/javascript">
+	function translate_dialog_mongo_resolver() {
+		$("#dialog_mongo_resolver" ).dialog( "option", "title", '${_("MongoDB Resolver")}' );
+		$('#button_resolver_mongo_cancel').button("option", "label", '${_("Cancel")}');
+		$('#button_resolver_mongo_save').button("option", "label", '${_("Save")}');
+	}
+</script>
+
 </div> <!-- end of all dialogs -->
 
 

@@ -68,7 +68,7 @@ var $dialog_show_enroll_url;
 var $dialog_token_info;
 var $dialog_setpin_token;
 var $dialog_view_temporary_token;
-
+var $dialog_mongo_resolver;
 
 var $dialog_import_policy;
 var $dialog_tokeninfo_set;
@@ -82,6 +82,7 @@ var $form_validator_ldap;
 var $form_validator_sql;
 var $form_validator_http;
 var $form_validator_file;
+var $form_validator_mongo;
 
 // FIXME: global variable should be worked out
 var g = {
@@ -2941,6 +2942,39 @@ function save_http_config(){
     return false;
 }
 
+function save_mongo_config(){
+   /*
+    * save the mongo resolver config
+    */
+    var resolvername = $('#mongo_resolvername').val();
+    var resolvertype = "mongoresolver";
+    var connString = $('#mongo_connString').val();
+    var collection = $('#mongo_collection').val();
+    var params = {};
+
+    params['name'] = resolvername;
+    params['previous_name'] = g.current_resolver_name;
+
+    params['type'] = resolvertype;
+    params['connString'] = connString;
+    params['collection'] = collection;
+    params['session'] = getsession();
+    show_waiting();
+    $.post('/system/setResolver', params,
+     function(data, textStatus, XMLHttpRequest){
+        if (data.result.status == false) {
+            alert_info_text({'text': "text_error_save_file",
+                             'param': escape(data.result.error.message),
+                             'type': ERROR,
+                             'is_escaped': true});
+        } else {
+            resolvers_load();
+            $dialog_mongo_resolver.dialog('close');
+        }
+        hide_waiting();
+    });
+}
+
 /*
  * set the default realm
  *
@@ -3311,6 +3345,9 @@ function resolver_edit_type(){
         case "passwdresolver":
             resolver_file(reso, false);
             break;
+        case "mongoresolver":
+            resolver_mongo(reso, false);
+            break;
     }
 }
 
@@ -3330,6 +3367,9 @@ function resolver_duplicate(){
             break;
         case "passwdresolver":
             resolver_file(reso, true);
+            break;
+        case "mongoresolver":
+            resolver_mongo(reso, true);
             break;
     }
 }
@@ -4002,6 +4042,14 @@ $(document).ready(function(){
             },
             id: "button_new_resolver_type_file",
             text: "Flatfile"
+            },
+            'MongoDB': { click: function(){
+                // calling with no parameter, creates a new resolver
+                resolver_mongo("", false);
+                $(this).dialog('close');
+            },
+            id: "button_new_resolver_type_mongo",
+            text: "MongoDB"
             }
         },
         open: function() {
@@ -4344,6 +4392,39 @@ $(document).ready(function(){
         }
     });
 
+    $dialog_mongo_resolver = $('#dialog_mongo_resolver').dialog({
+        autoOpen: false,
+        title: 'MongoDB Resolver',
+        width: 700,
+        modal: true,
+        maxHeight: 500,
+        buttons: {
+            'Cancel': {
+                click: function(){
+                    $(this).dialog('close');
+                },
+                id: "button_resolver_mongo_cancel",
+                text: "Cancel"
+            },
+            'Save': {
+                click: function(){
+                    if ($("#form_mongoconfig").valid()) {
+                        save_mongo_config();
+                    }
+                },
+                id: "button_resolver_mongo_save",
+                text: "Save"
+            }
+        },
+        open: function() {
+            $(this).dialog_icons();
+
+            // fix table after the browser balances the widths
+            $("table tr:first-child td", this).each(function() {
+                $(this).css("width", $(this).width());
+            });
+        }
+    });
 
     $dialog_resolvers = $('#dialog_resolvers').dialog({
         autoOpen: false,
@@ -6689,6 +6770,9 @@ function check_for_selected_resolvers(){
             case 'passwdresolver':
                 resolvers_in_realm_to_edit.push('useridresolver.PasswdIdResolver.IdResolver.' + r);
                 break;
+            case 'mongoresolver':
+                resolvers_in_realm_to_edit.push('useridresolver.MongoResolver.IdResolver.' + r);
+                break;
         }
     }).promise().done(function(){
         g.resolvers_in_realm_to_edit = resolvers_in_realm_to_edit.join(",");
@@ -7162,6 +7246,64 @@ function resolver_sql(name, duplicate){
     // make password field required if it is a new resolver and therefor name is empty
     $("#sql_password").rules("add", {
         required: !g.current_resolver_name
+    });
+}
+
+function resolver_mongo(name, duplicate){
+    if($form_validator_mongo) {
+        $form_validator_mongo.resetForm();
+    }
+
+    var obj = {
+        'result': {
+            'value': {
+                'data': {
+		    'connString': 'mongodb://localhost:27017/linotpi',
+                    'collection': 'auth'
+                }   
+            }   
+        }   
+    };  
+
+    g.current_resolver_name = (duplicate ? "" : name);
+    $('#mongo_resolvername').val(g.current_resolver_name);
+
+    if (name) {
+        // load the config of the resolver "name".
+        clientUrlFetch('/system/getResolver',{'resolver' : name}, function(xhdr, textStatus) {
+                var resp = xhdr.responseText;
+                obj = jQuery.parseJSON(resp);
+
+		$('#mongo_connString').val(obj.result.value.data.connString);
+                $('#mongo_collection').val(obj.result.value.data.collection);
+        });
+    } else {
+        $('#mongo_connString').val(obj.result.value.data.connString);
+        $('#mongo_collection').val(obj.result.value.data.collection);
+    }
+
+    $dialog_mongo_resolver.dialog('open');
+
+    $form_validator_mongo = $("#form_mongoconfig").validate({
+        rules: {
+            mongo_resolvername: {
+                required: true,
+                minlength: 4,
+                number: false,
+                resolvername: true,
+                unique_resolver_name: true
+            },
+            mongo_connString: {
+                required: true,
+                minlength: 10,
+                number: false
+            },
+            mongo_collection: {
+                required: true,
+                minlength: 2,
+                number: false
+            },
+        }
     });
 }
 
